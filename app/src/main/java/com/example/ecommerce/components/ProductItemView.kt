@@ -21,6 +21,7 @@ import androidx.compose.ui.Modifier
 import com.example.ecommerce.model.ProductModel
 import androidx.compose.material3.Text
 import androidx.compose.ui.Alignment
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextDecoration
@@ -28,10 +29,12 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import coil.compose.AsyncImage
+import com.example.ecommerce.AppUtil
 import com.example.ecommerce.GlobalNavigation
 
 @Composable
 fun ProductItemView(modifier: Modifier=Modifier,product:ProductModel){
+      var context= LocalContext.current
         Card(
             modifier=modifier
                 .padding(8.dp),
@@ -71,7 +74,9 @@ fun ProductItemView(modifier: Modifier=Modifier,product:ProductModel){
                         fontSize = 16.sp,
                         fontWeight = FontWeight.SemiBold)
                     Spacer(modifier=Modifier.weight(1f))
-                    IconButton(onClick = {}) {
+                    IconButton(onClick = {
+                        AppUtil.addItemToCart(product.id,context)
+                    }) {
                         Icon(
                             imageVector = Icons.Default.ShoppingCart,
                             contentDescription = "Add to cart"
