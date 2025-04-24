@@ -55,8 +55,6 @@ fun CartPage(modifier: Modifier=Modifier){
                 Row{
 
                         CartItemView(productId = productId, modifier = Modifier.weight(1f),qty=qty)
-
-
                 }
             }
         }
