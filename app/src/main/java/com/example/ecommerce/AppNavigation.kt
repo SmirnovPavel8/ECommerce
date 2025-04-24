@@ -24,7 +24,7 @@ fun AppNavigation(modifier: Modifier=Modifier){
     val isLogeedIn=Firebase.auth.currentUser!=null
     val firstPage=if(isLogeedIn) "home" else "auth"
 
-   NavHost(navController=navController , startDestination = "auth") {
+   NavHost(navController=navController , startDestination = firstPage) {
        composable("auth"){
            AuthScreen(modifier,navController)
 

@@ -4,6 +4,7 @@ import android.content.Context
 import android.widget.Toast
 import com.google.firebase.Firebase
 import com.google.firebase.auth.FirebaseAuth
+import com.google.firebase.firestore.FieldValue
 import com.google.firebase.firestore.firestore
 
 object AppUtil {
@@ -29,6 +30,64 @@ object AppUtil {
                     }
             }
         }
+    }
+    fun removeItemFromCart(productId: String, context: Context) {
+        val userDoc = Firebase.firestore.collection("users")
+            .document(FirebaseAuth.getInstance().currentUser?.uid!!)
+
+        userDoc.get().addOnCompleteListener { task ->
+            if (task.isSuccessful) {
+                val currentCart = task.result.get("cartItems") as? Map<String, Long> ?: emptyMap()
+                val currentQuantity = currentCart[productId] ?: 0
+
+                if (currentQuantity <= 1) {
+                    // Если количество 1 или меньше - полностью удаляем товар из корзины
+                    val updatedCart = HashMap<String, Any>()
+                    updatedCart["cartItems.$productId"] = FieldValue.delete()
+
+                    userDoc.update(updatedCart)
+                        .addOnCompleteListener { updateTask ->
+                            if (updateTask.isSuccessful) {
+                                showToast(context, "Item removed from cart")
+                            } else {
+                                showToast(context, "Failed to remove item from cart")
+                            }
+                        }
+                } else {
+                    // Если количество больше 1 - уменьшаем на 1
+                    val updatedQuantity = currentQuantity - 1
+                    val updatedCart = mapOf("cartItems.$productId" to updatedQuantity)
+
+                    userDoc.update(updatedCart)
+                        .addOnCompleteListener { updateTask ->
+                            if (updateTask.isSuccessful) {
+                                showToast(context, "Item quantity decreased")
+                            } else {
+                                showToast(context, "Failed to update item quantity")
+                            }
+                        }
+                }
+            } else {
+                showToast(context, "Failed to access cart")
+            }
+        }
+    }
+    fun removeItemCompletely(productId: String, context: Context) {
+        val userDoc = Firebase.firestore.collection("users")
+            .document(FirebaseAuth.getInstance().currentUser?.uid!!)
+
+        val updates = hashMapOf<String, Any>(
+            "cartItems.$productId" to FieldValue.delete()
+        )
+
+        userDoc.update(updates)
+            .addOnCompleteListener { task ->
+                if (task.isSuccessful) {
+                    showToast(context, "Товар полностью удалён из корзины")
+                } else {
+                    showToast(context, "Ошибка при удалении товара")
+                }
+            }
     }
 
 }

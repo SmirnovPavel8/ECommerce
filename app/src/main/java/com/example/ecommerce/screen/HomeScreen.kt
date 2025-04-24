@@ -27,6 +27,7 @@ import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.unit.dp
 import androidx.navigation.NavController
 import com.example.ecommerce.pages.CartPage
+import com.example.ecommerce.pages.CategoryProductsPage
 import com.example.ecommerce.pages.FavoritePage
 import com.example.ecommerce.pages.HomePage
 import com.example.ecommerce.pages.ProfilePage
