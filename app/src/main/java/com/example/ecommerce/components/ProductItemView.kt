@@ -34,7 +34,7 @@ import com.example.ecommerce.GlobalNavigation
 
 @Composable
 fun ProductItemView(modifier: Modifier=Modifier,product:ProductModel){
-      var context= LocalContext.current
+    var context= LocalContext.current
         Card(
             modifier=modifier
                 .padding(8.dp),
