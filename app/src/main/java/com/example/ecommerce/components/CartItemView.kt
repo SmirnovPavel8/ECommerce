@@ -30,8 +30,10 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -53,123 +55,79 @@ import com.google.firebase.firestore.firestore
 
 @Composable
 fun CartItemView(modifier: Modifier = Modifier, productId: String, qty: Long) {
-    val productsList = remember { mutableStateOf<List<ProductModel>>(emptyList()) }
-    val context = LocalContext.current
-    LaunchedEffect(Unit) {
+    var product by remember{
+        mutableStateOf(ProductModel())
+    }
+    LaunchedEffect(key1=Unit) {
         Firebase.firestore.collection("data")
-            .document("stock")
-            .collection("products")
-            .whereEqualTo("id", productId)
-            .get()
-            .addOnCompleteListener { task ->
-                if (task.isSuccessful) {
-                    productsList.value = task.result.documents.mapNotNull {
-                        it.toObject(ProductModel::class.java)
+            .document("stock").collection("products")
+            .document(productId).get().addOnCompleteListener(){
+                if(it.isSuccessful){
+                    val reuslt=it.result.toObject(ProductModel::class.java)
+                    if(reuslt!=null){
+                        product=reuslt
                     }
                 }
             }
     }
+    var context= LocalContext.current
+    Card(
+        modifier=modifier
+            .padding(8.dp)
+            .fillMaxWidth(),
+        shape= RoundedCornerShape(12.dp),
+        colors=CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+        elevation = CardDefaults.cardElevation(8.dp)
+    ) {
+        Row(
+            modifier = Modifier
+                .padding(8.dp)
+                .clickable {
+                    GlobalNavigation.navController.navigate("product-details/"+product.id)
+                },
+            verticalAlignment = Alignment.CenterVertically
 
-    productsList.value.firstOrNull()?.let { product ->
-        Card(
-            modifier = modifier.padding(8.dp),
-            shape = RoundedCornerShape(12.dp),
-            colors = CardDefaults.cardColors(
-                containerColor = MaterialTheme.colorScheme.surface
-            ),
-            elevation = CardDefaults.cardElevation(8.dp)
-        ) {
-            Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(12.dp),
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.spacedBy(12.dp)
-            ) {
-                // Изображение товара (слева)
-                AsyncImage(
-                    model = product.images.firstOrNull(),
-                    contentDescription = product.title,
-                    modifier = Modifier
-                        .size(80.dp)
-                        .clip(RoundedCornerShape(8.dp))
-                        .clickable {
-                            GlobalNavigation.navController.navigate("product-details/${product.id}")
-                        },
-                    contentScale = ContentScale.Crop
+        ){
+            AsyncImage(
+                model=product.images.firstOrNull(),
+                contentDescription = product.title,
+                modifier=Modifier.height(120.dp)
+                    .width(100.dp)
+            )
+            Column(modifier=Modifier.padding(8.dp)
+                .weight(1f)){
+                Text(
+                    text=product.title,
+                    fontWeight = FontWeight.Bold,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis)
+                Text(text="₽"+ product.actualPrice,
+                    fontSize = 16.sp,
+                    fontWeight = FontWeight.SemiBold)
+                Row(
+                    verticalAlignment = Alignment.CenterVertically
+                ){
+                    IconButton(onClick={
+                        AppUtil.removeFromCart(productId,context)
+                    }) {
+                        Text(text="-", fontSize = 20.sp, fontWeight = FontWeight.Bold)
+                    }
+                    Text(text="$qty", fontSize = 16.sp)
+                    IconButton(onClick={
+                        AppUtil.addItemToCart(productId,context)
+                    }) {
+                        Text(text="+", fontSize = 20.sp, fontWeight = FontWeight.Bold)
+                    }
+                }
+            }
+
+            IconButton(onClick = {
+                AppUtil.removeFromCart(productId,context, removeAll = true)
+            }) {
+                Icon(
+                    imageVector = Icons.Default.Delete,
+                    contentDescription = "Remove from cart"
                 )
-
-                // Название и цена (по центру)
-                Column(
-                    modifier = Modifier.weight(1f),
-                    verticalArrangement = Arrangement.spacedBy(4.dp)
-                ) {
-                    Text(
-                        text = product.title,
-                        fontWeight = FontWeight.Bold,
-                        maxLines = 2,
-                        overflow = TextOverflow.Ellipsis
-                    )
-
-                    Row(verticalAlignment = Alignment.CenterVertically) {
-                        Text(
-                            text = "₽${product.price}",
-                            fontSize = 14.sp,
-                            style = TextStyle(textDecoration = TextDecoration.LineThrough)
-                        )
-                        Spacer(modifier = Modifier.width(8.dp))
-                        Text(
-                            text = "₽${product.actualPrice}",
-                            fontSize = 16.sp,
-                            fontWeight = FontWeight.SemiBold,
-                            color = MaterialTheme.colorScheme.primary
-                        )
-                    }
-                }
-
-                // Кнопки управления (справа)
-                Column(
-                    horizontalAlignment = Alignment.End,
-                    verticalArrangement = Arrangement.spacedBy(8.dp)
-                ) {
-                    // Кнопка удаления
-                    IconButton(
-                        onClick = { AppUtil.removeItemCompletely(product.id, context) },
-                        modifier = Modifier.size(32.dp)
-                    ) {
-                        Icon(
-                            imageVector = Icons.Default.Delete,
-                            contentDescription = "Remove",
-                            tint = MaterialTheme.colorScheme.error
-                        )
-                    }
-
-                    // Блок количества
-                    Row(
-                        verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.spacedBy(4.dp)
-                    ) {
-                        IconButton(
-                            onClick = { AppUtil.removeItemFromCart(product.id, context) },
-                            modifier = Modifier.size(24.dp)
-                        ) {
-                            Text(text = "-", fontSize = 16.sp)
-                        }
-
-                        Text(
-                            text = qty.toString(),
-                            modifier = Modifier.width(24.dp),
-                            textAlign = TextAlign.Center
-                        )
-
-                        IconButton(
-                            onClick = { AppUtil.addItemToCart(product.id, context) },
-                            modifier = Modifier.size(24.dp)
-                        ) {
-                            Text(text = "+", fontSize = 16.sp)
-                        }
-                    }
-                }
             }
         }
     }
