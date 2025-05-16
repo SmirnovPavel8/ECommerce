@@ -6,4 +6,5 @@ data class UserModel(
     val uid:String="",
     var cartItems : Map<String,Long> = emptyMap(),
     val addres:String="",
+    val role:String=""
 )

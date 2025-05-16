@@ -6,6 +6,7 @@ import androidx.navigation.NavHostController
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
+import com.example.ecommerce.pages.AllOrdersPage
 import com.example.ecommerce.pages.CategoryProductsPage
 import com.example.ecommerce.pages.CheckoutPage
 import com.example.ecommerce.pages.ProductDetailsPage
@@ -49,7 +50,7 @@ fun AppNavigation(modifier: Modifier=Modifier){
             ProductDetailsPage(modifier,productId?:"")
         }
         composable("checkout"){
-            CheckoutPage(modifier)
+            CheckoutPage(modifier,navController)
         }
     }
 
