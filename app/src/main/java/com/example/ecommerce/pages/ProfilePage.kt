@@ -1,9 +1,11 @@
 package com.example.ecommerce.pages
 
 import android.annotation.SuppressLint
+import android.content.Context
 import android.widget.Toast
 import androidx.compose.foundation.layout.*
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.ExitToApp
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
@@ -24,6 +26,10 @@ fun ProfilePage(modifier: Modifier = Modifier) {
     val context = LocalContext.current
     val currentUser = Firebase.auth.currentUser
     val userData = remember { mutableStateOf<UserModel?>(null) }
+    var editingAddress by remember { mutableStateOf(false) }
+    var editingPhone by remember { mutableStateOf(false) }
+    var tempAddress by remember { mutableStateOf("") }
+    var tempPhone by remember { mutableStateOf("") }
 
     // Загружаем данные пользователя
     LaunchedEffect(currentUser) {
@@ -33,6 +39,8 @@ fun ProfilePage(modifier: Modifier = Modifier) {
                 .get()
                 .addOnSuccessListener { document ->
                     userData.value = document.toObject(UserModel::class.java)
+                    tempAddress = userData.value?.addres ?: ""
+                    tempPhone = userData.value?.number ?: ""
                 }
         }
     }
@@ -62,14 +70,99 @@ fun ProfilePage(modifier: Modifier = Modifier) {
                 .padding(16.dp)
         ) {
             userData.value?.let { user ->
-                // Основная информация
+                // Основная информация (не редактируемая)
                 ProfileItem("Имя", user.name)
                 ProfileItem("Email", user.email)
-                ProfileItem("Телефон", user.number)
-                ProfileItem("Адрес", user.addres)
+
+                // Редактируемый телефон
+                if (editingPhone) {
+                    OutlinedTextField(
+                        value = tempPhone,
+                        onValueChange = { tempPhone = it },
+                        label = { Text("Номер телефона") },
+                        modifier = Modifier.fillMaxWidth()
+                    )
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.End
+                    ) {
+                        TextButton(onClick = { editingPhone = false }) {
+                            Text("Отмена")
+                        }
+                        Spacer(modifier = Modifier.width(8.dp))
+                        TextButton(onClick = {
+                            updateUserField("number", tempPhone, context)
+                            editingPhone = false
+                        }) {
+                            Text("Сохранить")
+                        }
+                    }
+                } else {
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        ProfileItem("Телефон", user.number)
+                        IconButton(
+                            onClick = { editingPhone = true },
+                            modifier = Modifier.size(24.dp)
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.Edit,
+                                contentDescription = "Редактировать телефон",
+                                tint = MaterialTheme.colorScheme.primary
+                            )
+                        }
+                    }
+                }
+
+                Divider(modifier = Modifier.padding(vertical = 8.dp))
+
+                // Редактируемый адрес
+                if (editingAddress) {
+                    OutlinedTextField(
+                        value = tempAddress,
+                        onValueChange = { tempAddress = it },
+                        label = { Text("Адрес") },
+                        modifier = Modifier.fillMaxWidth()
+                    )
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.End
+                    ) {
+                        TextButton(onClick = { editingAddress = false }) {
+                            Text("Отмена")
+                        }
+                        Spacer(modifier = Modifier.width(8.dp))
+                        TextButton(onClick = {
+                            updateUserField("addres", tempAddress, context)
+                            editingAddress = false
+                        }) {
+                            Text("Сохранить")
+                        }
+                    }
+                } else {
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        ProfileItem("Адрес", user.addres)
+                        IconButton(
+                            onClick = { editingAddress = true },
+                            modifier = Modifier.size(24.dp)
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.Edit,
+                                contentDescription = "Редактировать адрес",
+                                tint = MaterialTheme.colorScheme.primary
+                            )
+                        }
+                    }
+                }
 
                 // Роль (если нужно показывать)
                 if (user.role.isNotEmpty()) {
+                    Divider(modifier = Modifier.padding(vertical = 8.dp))
                     ProfileItem("Роль", user.role)
                 }
             } ?: run {
@@ -81,6 +174,23 @@ fun ProfilePage(modifier: Modifier = Modifier) {
                 )
             }
         }
+    }
+}
+
+private fun updateUserField(field: String, value: String, context: Context) {
+    val currentUser = Firebase.auth.currentUser
+    currentUser?.uid?.let { uid ->
+        Firebase.firestore.collection("users")
+            .document(uid)
+            .update(field, value)
+            .addOnSuccessListener {
+                Toast.makeText(context, "Данные обновлены", Toast.LENGTH_SHORT).show()
+            }
+            .addOnFailureListener {
+                Toast.makeText(context, "Ошибка обновления", Toast.LENGTH_SHORT).show()
+            }
+    } ?: run {
+        Toast.makeText(context, "Пользователь не авторизован", Toast.LENGTH_SHORT).show()
     }
 }
 
@@ -97,6 +207,5 @@ private fun ProfileItem(label: String, value: String) {
             style = MaterialTheme.typography.bodyLarge,
             modifier = Modifier.padding(top = 4.dp)
         )
-        Divider(modifier = Modifier.padding(top = 8.dp))
     }
 }
