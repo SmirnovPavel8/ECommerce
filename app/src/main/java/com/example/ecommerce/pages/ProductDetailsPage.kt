@@ -1,5 +1,6 @@
 package com.example.ecommerce.pages
 
+import android.widget.Toast
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -40,18 +41,34 @@ import androidx.compose.ui.unit.sp
 import coil.compose.AsyncImage
 import com.example.ecommerce.AppUtil
 import com.example.ecommerce.model.ProductModel
+import com.example.ecommerce.model.UserModel
 import com.google.firebase.Firebase
+import com.google.firebase.auth.FirebaseAuth
+import com.google.firebase.auth.auth
 import com.google.firebase.firestore.firestore
 import com.tbuonomo.viewpagerdotsindicator.compose.DotsIndicator
 import com.tbuonomo.viewpagerdotsindicator.compose.model.DotGraphic
 import com.tbuonomo.viewpagerdotsindicator.compose.type.ShiftIndicatorType
 
 @Composable
-fun ProductDetailsPage(modifier: Modifier=Modifier,productId:String){
-    var product by remember {
-        mutableStateOf(ProductModel())
+fun ProductDetailsPage(modifier: Modifier = Modifier, productId: String) {
+    var product by remember { mutableStateOf(ProductModel()) }
+    var isFavorite by remember { mutableStateOf(false) }
+    val context = LocalContext.current
+
+    // Проверяем начальное состояние избранного
+    LaunchedEffect(productId) {
+        FirebaseAuth.getInstance().currentUser?.uid?.let { userId ->
+            Firebase.firestore.collection("users")
+                .document(userId)
+                .get()
+                .addOnSuccessListener { document ->
+                    val favorites = document.get("favoriteItems") as? Map<String, Boolean> ?: emptyMap()
+                    isFavorite = favorites[productId] ?: false
+                }
+        }
     }
-    var context= LocalContext.current
+
     LaunchedEffect(key1=Unit) {
         Firebase.firestore.collection("data")
             .document("stock")
@@ -123,12 +140,17 @@ fun ProductDetailsPage(modifier: Modifier=Modifier,productId:String){
                 fontSize = 20.sp,
                 fontWeight = FontWeight.Bold)
             Spacer(modifier=Modifier.weight(1f))
-            IconButton(onClick = {}) {
+            IconButton(onClick = {
+                AppUtil.toggleFavorite(productId, context)
+                isFavorite = !isFavorite // Оптимистичное обновление UI
+            }) {
                 Icon(
-                    imageVector = Icons.Default.FavoriteBorder,
-                    contentDescription = "Add to Favorite"
+                    imageVector = if (isFavorite) Icons.Default.Favorite else Icons.Default.FavoriteBorder,
+                    contentDescription = "Add to Favorite",
+                    tint = if (isFavorite) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurface
                 )
             }
+
         }
         Spacer(modifier=Modifier.height(8.dp))
         Button(onClick = {

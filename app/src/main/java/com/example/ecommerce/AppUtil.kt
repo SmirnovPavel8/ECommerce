@@ -4,6 +4,7 @@ import android.content.Context
 import android.widget.Toast
 import com.google.firebase.Firebase
 import com.google.firebase.auth.FirebaseAuth
+import com.google.firebase.auth.auth
 import com.google.firebase.firestore.FieldValue
 import com.google.firebase.firestore.firestore
 
@@ -62,4 +63,38 @@ object AppUtil {
     fun getTaxPercentage(): Float{
         return 13.0f
     }
+
+    fun toggleFavorite(productId: String, context: Context) {
+        val userId = FirebaseAuth.getInstance().currentUser?.uid ?: run {
+            Toast.makeText(context, "Войдите в аккаунт", Toast.LENGTH_SHORT).show()
+            return
+        }
+
+        val userDoc = Firebase.firestore.collection("users").document(userId)
+
+        userDoc.get().addOnCompleteListener { task ->
+            if (task.isSuccessful) {
+                val currentFavorites = task.result.get("favoriteItems") as? Map<String, Boolean> ?: emptyMap()
+                val isCurrentlyFavorite = currentFavorites[productId] ?: false
+
+                val update = if (isCurrentlyFavorite) {
+                    // Удаляем из избранного
+                    mapOf("favoriteItems.$productId" to FieldValue.delete())
+                } else {
+                    // Добавляем в избранное
+                    mapOf("favoriteItems.$productId" to true)
+                }
+
+                userDoc.update(update).addOnCompleteListener { updateTask ->
+                    val message = if (updateTask.isSuccessful) {
+                        if (isCurrentlyFavorite) "Удалено из избранного" else "Добавлено в избранное"
+                    } else {
+                        "Ошибка: ${updateTask.exception?.message}"
+                    }
+                    Toast.makeText(context, message, Toast.LENGTH_SHORT).show()
+                }
+            }
+        }
+    }
+
 }
