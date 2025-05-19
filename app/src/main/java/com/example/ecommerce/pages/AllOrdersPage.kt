@@ -30,42 +30,55 @@ fun AllOrdersPage(
     val users = remember { mutableStateMapOf<String, UserModel>() }
     val isLoading = remember { mutableStateOf(true) }
 
-    LaunchedEffect(key1 = Unit) {
-        Firebase.firestore.collection("orders")
+    DisposableEffect(Unit) {
+        val ordersQuery = Firebase.firestore.collection("orders")
             .orderBy("timestamp", com.google.firebase.firestore.Query.Direction.DESCENDING)
-            .get()
-            .addOnSuccessListener { ordersSnapshot ->
+
+        val listener = ordersQuery.addSnapshotListener { snapshot, error ->
+            if (error != null) {
+                isLoading.value = false
+                return@addSnapshotListener
+            }
+
+            snapshot?.let { ordersSnapshot ->
                 val ordersList = ordersSnapshot.toObjects(OrderModel::class.java)
                 ordersList.forEachIndexed { index, order ->
                     order.uid = ordersSnapshot.documents[index].id
                 }
+
                 orders.clear()
                 orders.addAll(ordersList)
 
-                // Load user data
-                val userIds = orders.map { it.userId }.distinct()
-                if (userIds.isNotEmpty()) {
+                // Загружаем данные пользователей только если есть заказы
+                if (ordersList.isNotEmpty()) {
+                    val userIds = ordersList.map { it.userId }.distinct()
                     Firebase.firestore.collection("users")
                         .whereIn("uid", userIds)
                         .get()
                         .addOnSuccessListener { usersSnapshot ->
+                            users.clear()
                             usersSnapshot.forEach { doc ->
                                 users[doc.id] = doc.toObject(UserModel::class.java)
                             }
+                            isLoading.value = false
+                        }
+                        .addOnFailureListener {
                             isLoading.value = false
                         }
                 } else {
                     isLoading.value = false
                 }
             }
-            .addOnFailureListener {
-                isLoading.value = false
-            }
+        }
+
+        onDispose {
+            listener.remove()
+        }
     }
 
     Column(modifier = modifier.fillMaxSize().padding(16.dp)) {
         Text(
-            text = "Мои заказы",
+            text = "Все заказы",
             fontSize = 24.sp,
             fontWeight = FontWeight.Bold,
             modifier = Modifier.padding(bottom = 16.dp)
@@ -108,21 +121,68 @@ private fun OrderCard(
     val formattedDate = remember(order.timestamp) {
         dateFormat.format(Date(order.timestamp))
     }
-
-    // Состояние для хранения суммы заказа
     val orderTotal = remember { mutableStateOf("...") }
+    val showDeleteDialog = remember { mutableStateOf(false) }
+    val isLoadingDelete = remember { mutableStateOf(false) }
 
-    // Асинхронная загрузка суммы
+    // Расчет суммы заказа
     LaunchedEffect(order) {
         orderTotal.value = withContext(Dispatchers.IO) {
             calculateOrderTotal(order)
         }
     }
 
+    // Диалог подтверждения удаления
+    if (showDeleteDialog.value) {
+        AlertDialog(
+            onDismissRequest = { showDeleteDialog.value = false },
+            title = { Text("Подтверждение удаления") },
+            text = { Text("Вы уверены, что хотите удалить этот заказ?") },
+            confirmButton = {
+                Button(
+                    onClick = {
+                        isLoadingDelete.value = true
+                        Firebase.firestore.collection("orders")
+                            .document(order.uid)
+                            .delete()
+                            .addOnSuccessListener {
+                                isLoadingDelete.value = false
+                                showDeleteDialog.value = false
+                            }
+                            .addOnFailureListener {
+                                isLoadingDelete.value = false
+                                // Можно показать ошибку
+                            }
+                    },
+                    colors = ButtonDefaults.buttonColors(
+                        containerColor = MaterialTheme.colorScheme.error,
+                        contentColor = MaterialTheme.colorScheme.onError
+                    )
+                ) {
+                    if (isLoadingDelete.value) {
+                        CircularProgressIndicator(
+                            modifier = Modifier.size(20.dp),
+                            color = MaterialTheme.colorScheme.onError,
+                            strokeWidth = 2.dp
+                        )
+                    } else {
+                        Text("Удалить")
+                    }
+                }
+            },
+            dismissButton = {
+                TextButton(
+                    onClick = { showDeleteDialog.value = false }
+                ) {
+                    Text("Отмена")
+                }
+            }
+        )
+    }
+
     Card(
         modifier = Modifier.fillMaxWidth(),
-        elevation = CardDefaults.cardElevation(defaultElevation = 4.dp),
-        onClick = onOrderClick
+        elevation = CardDefaults.cardElevation(defaultElevation = 4.dp)
     ) {
         Column(modifier = Modifier.padding(16.dp)) {
             Row(
@@ -143,9 +203,9 @@ private fun OrderCard(
             Spacer(modifier = Modifier.height(8.dp))
 
             user?.let {
-                Text(text = "Получатель: ${it.name}")
-                Text(text="Почта: ${it.email}")
-                Text(text="Телефон: ${it.number}")
+                Text(text = "Клиент: ${it.name}")
+                Text(text = "Email: ${it.email}")
+                Text(text = "Телефон: ${it.number}")
                 Text(text = "Адрес: ${it.addres}")
             }
 
@@ -167,15 +227,31 @@ private fun OrderCard(
 
             Spacer(modifier = Modifier.height(8.dp))
 
-            Button(
-                onClick = onOrderClick,
+            Row(
                 modifier = Modifier.fillMaxWidth(),
-                colors = ButtonDefaults.buttonColors(
-                    containerColor = MaterialTheme.colorScheme.primaryContainer,
-                    contentColor = MaterialTheme.colorScheme.onPrimaryContainer
-                )
+                horizontalArrangement = Arrangement.spacedBy(8.dp)
             ) {
-                Text("Подробнее о заказе")
+                Button(
+                    onClick = onOrderClick,
+                    modifier = Modifier.weight(1f),
+                    colors = ButtonDefaults.buttonColors(
+                        containerColor = MaterialTheme.colorScheme.primaryContainer,
+                        contentColor = MaterialTheme.colorScheme.onPrimaryContainer
+                    )
+                ) {
+                    Text("Подробнее")
+                }
+
+                Button(
+                    onClick = { showDeleteDialog.value = true },
+                    modifier = Modifier.weight(1f),
+                    colors = ButtonDefaults.buttonColors(
+                        containerColor = MaterialTheme.colorScheme.errorContainer,
+                        contentColor = MaterialTheme.colorScheme.onErrorContainer
+                    )
+                ) {
+                    Text("Удалить")
+                }
             }
         }
     }
@@ -203,10 +279,9 @@ private suspend fun calculateOrderTotal(order: OrderModel): String {
             }
         }
 
-        // Форматируем с двумя знаками после запятой
         "%.2f".format(total)
     } catch (e: Exception) {
-        "0.00" // Возвращаем 0 в случае ошибки
+        "0.00"
     }
 }
 
@@ -220,6 +295,6 @@ private fun FullScreenLoader() {
 @Composable
 private fun EmptyOrdersMessage() {
     Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-        Text("У вас пока нет заказов")
+        Text("Список заказов пуст")
     }
 }

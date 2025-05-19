@@ -196,45 +196,6 @@ private fun OrderDetailsContent(
 }
 
 
-
-// Компонент для отображения товара в заказе (аналог CartItemView)
-@Composable
-fun OrderItemView(
-    product: ProductModel,
-    quantity: Int,
-    modifier: Modifier = Modifier
-) {
-    Card(
-        modifier = modifier
-    ) {
-        Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(16.dp),
-            horizontalArrangement = Arrangement.SpaceBetween
-        ) {
-            Column(
-                modifier = Modifier.weight(1f)
-            ) {
-                Text(
-                    text = product.title,
-                    fontWeight = FontWeight.Bold,
-                    fontSize = 16.sp
-                )
-                Spacer(modifier = Modifier.height(4.dp))
-                Text(
-                    text = "${product.actualPrice} ₽ x $quantity",
-                    color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f)
-                )
-            }
-            Text(
-                text = "%.2f ₽".format(product.actualPrice.toDouble() * quantity),
-                fontWeight = FontWeight.Bold
-            )
-        }
-    }
-}
-
 // Загрузка товаров заказа
 private fun loadOrderProducts(
     cartItems: Map<String, Long>,
